@@ -1,0 +1,1 @@
+# external-dns-provider-freedns
