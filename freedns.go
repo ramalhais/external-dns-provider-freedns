@@ -24,7 +24,7 @@ const minimumTTL = 3600
 type FreeDNSProvider struct {
     provider.BaseProvider
     Client *freedns.FreeDNS
-    // Only consihosted zones managing domains ending in this suffix
+    // Only consider hosted zones managing domains ending in this suffix
     domainFilter     endpoint.DomainFilter
     DryRun           bool
 }
@@ -51,17 +51,32 @@ func (p *FreeDNSProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, er
 
     zoneRecords := map[string]freedns.Record{}
     for domain, domain_id := range domains {
+        log.WithFields(log.Fields{
+            "domain":   domain,
+            "domain_id":domain_id,
+        }).Infof("Records()")
+
         if p.domainFilter.Match(domain) {
             records, _ := p.Client.GetRecords(domain_id)
             for recordID, record := range records {
                 zoneRecords[recordID] = record
             }
+        } else {
+            log.WithFields(log.Fields{
+                "domain":   domain,
+            }).Infof("Records(): did not match filter")
         }
     }
 
     for _, r := range zoneRecords {
         if provider.SupportedRecordType(string(r.Type)) {
             endpoints = append(endpoints, endpoint.NewEndpointWithTTL(r.Name, string(r.Type), endpoint.TTL(minimumTTL), r.Value))
+        } else {
+            log.WithFields(log.Fields{
+                "r.Name":   r.Name,
+                "r.Type":   r.Type,
+                "r.Value":  r.Value,
+            }).Infof("Records(): SupportedRecordType is false")
         }
     }
     return endpoints, nil
